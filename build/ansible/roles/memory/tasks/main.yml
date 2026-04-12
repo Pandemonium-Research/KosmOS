@@ -50,3 +50,19 @@
       metadata:
         description: "Default KosmOS agent memory collection"
     status_code: [200, 201, 409]   # 409 = already exists, that's fine
+
+- name: Pre-warm ChromaDB embedding model
+  # Triggers the ~90 MB model download at image build time so the first
+  # agent query does not stall waiting for a network fetch.
+  become_user: "{{ kosmos_user }}"
+  command:
+    argv:
+      - "{{ kosmos_venv }}/bin/python"
+      - "-c"
+      - |
+          from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+          DefaultEmbeddingFunction()(["warmup"])
+  environment:
+    HOME: "{{ kosmos_home }}"
+  args:
+    creates: "{{ kosmos_home }}/.cache/chroma/onnx_models/all-MiniLM-L6-v2/onnx.tar.gz"
