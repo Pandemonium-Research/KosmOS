@@ -1,0 +1,21 @@
+---
+# KosmOS master playbook
+# Applies all roles in order to the target host.
+# Run via Packer's ansible provisioner — host is the QEMU VM being imaged.
+
+- name: KosmOS image provisioning
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - vars/defaults.yml
+
+  roles:
+    - role: base       # OS hardening, UFW, fail2ban, SSH
+    - role: llm        # Ollama + LiteLLM + default model pull
+    - role: agent      # Python 3.12 + uv, Node.js, Rust, Claude Code CLI
+    - role: tools      # FastMCP, SearXNG, Playwright
+    - role: memory     # ChromaDB vector store
+    - role: workflow   # Temporal dev server
+    - role: observe    # Prometheus + Loki + Promtail + Grafana

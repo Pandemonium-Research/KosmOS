@@ -1,0 +1,67 @@
+---
+# KosmOS build-time defaults
+# Override any of these by passing -e key=value to ansible-playbook.
+
+# ── LLM ────────────────────────────────────────────────────────────────────────
+kosmos_default_model: "qwen2.5:7b"       # pulled into the image; works offline
+kosmos_fallback_model: "llama3.2:3b"     # smaller option for low-VRAM hosts
+ollama_host: "127.0.0.1"
+ollama_port: 11434
+litellm_port: 4000
+
+# ── Python env ─────────────────────────────────────────────────────────────────
+kosmos_venv: /opt/kosmos/venv
+kosmos_user: kosmos
+kosmos_home: /home/kosmos
+
+# ── Python packages installed into kosmos venv ─────────────────────────────────
+kosmos_python_packages:
+  - langgraph
+  - langchain
+  - langchain-community
+  - langchain-openai
+  - litellm
+  - openai
+  - anthropic
+  - chromadb
+  - fastmcp
+  - playwright
+  - httpx
+  - pydantic
+  - python-dotenv
+  - rich
+  - typer
+
+# ── Services and ports ─────────────────────────────────────────────────────────
+chromadb_port: 8000
+fastmcp_port: 8080
+searxng_port: 8888
+temporal_ui_port: 8233
+temporal_grpc_port: 7233
+grafana_port: 3000
+prometheus_port: 9090
+loki_port: 3100
+
+# ── Observability ──────────────────────────────────────────────────────────────
+prometheus_scrape_interval: 15s
+grafana_admin_password: kosmos   # change post-boot for production use
+
+# ── Security ───────────────────────────────────────────────────────────────────
+# UFW: only these ports open to the world; everything else is denied inbound.
+ufw_allowed_ports:
+  - 22     # SSH
+  - "{{ litellm_port }}"      # LLM gateway
+  - "{{ fastmcp_port }}"      # MCP tools
+  - "{{ grafana_port }}"      # Grafana
+  - "{{ searxng_port }}"      # SearXNG
+  - "{{ temporal_ui_port }}"  # Temporal UI
+
+# fail2ban: SSH brute-force protection
+fail2ban_maxretry: 5
+fail2ban_bantime: 3600   # 1 hour
+fail2ban_findtime: 600   # 10 minutes
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+kosmos_config_dir: /etc/kosmos
+kosmos_data_dir: /var/lib/kosmos
+kosmos_log_dir: /var/log/kosmos
