@@ -36,13 +36,35 @@
     daemon_reload: true
 
 # ── SearXNG (Docker) ───────────────────────────────────────────────────────────
+# docker-compose-plugin lives in Docker's official apt repo, not Ubuntu's.
 
-- name: Install Docker prerequisites
+- name: Install Docker apt prerequisites
   apt:
     name:
-      - docker.io
+      - ca-certificates
+      - curl
+    state: present
+
+- name: Add Docker GPG key
+  shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Add Docker apt repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble main"
+    state: present
+    filename: docker
+
+- name: Install Docker Engine and Compose plugin
+  apt:
+    name:
+      - docker-ce
       - docker-compose-plugin
     state: present
+    update_cache: true
 
 - name: Add kosmos user to docker group
   user:
