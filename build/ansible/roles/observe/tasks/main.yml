@@ -245,6 +245,7 @@
 
       [Service]
       Type=simple
+      User=loki
       ExecStart=/usr/local/bin/promtail -config.file=/etc/loki/promtail.yaml
       Restart=always
       RestartSec=5
