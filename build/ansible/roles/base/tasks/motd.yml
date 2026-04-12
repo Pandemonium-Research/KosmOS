@@ -1,0 +1,27 @@
+---
+# Wire KosmOS MOTD into update-motd.d
+
+- name: Disable default Ubuntu MOTD scripts
+  file:
+    path: "/etc/update-motd.d/{{ item }}"
+    mode: "0644"   # remove execute bit to suppress
+  loop:
+    - 10-help-text
+    - 50-motd-news
+    - 80-livepatch
+  ignore_errors: true
+
+- name: Deploy KosmOS MOTD script
+  copy:
+    src: kosmos-motd.sh
+    dest: /etc/update-motd.d/99-kosmos
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Enable MOTD in PAM (sshd)
+  lineinfile:
+    path: /etc/pam.d/sshd
+    regexp: "^#?session.*pam_motd"
+    line: "session    optional     pam_motd.so motd=/run/motd.dynamic"
+    state: present

@@ -1,0 +1,133 @@
+---
+# roles/base — OS hardening: UFW, fail2ban, SSH, unattended-upgrades
+
+- name: Update apt cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  apt:
+    name:
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+      - apt-listchanges
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+      - jq
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - build-essential
+      - software-properties-common
+      - net-tools
+      - iputils-ping
+      - rsync
+      - unzip
+      - tree
+    state: present
+
+# ── SSH hardening ──────────────────────────────────────────────────────────────
+
+- name: Configure sshd
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "sshd -t -f %s"
+  notify: restart sshd
+
+# ── UFW firewall ───────────────────────────────────────────────────────────────
+
+- name: Set UFW default policy — deny inbound, allow outbound
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+
+- name: Allow configured ports through UFW
+  ufw:
+    rule: allow
+    port: "{{ item | string }}"
+    proto: tcp
+  loop: "{{ ufw_allowed_ports }}"
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+# ── fail2ban ───────────────────────────────────────────────────────────────────
+
+- name: Configure fail2ban jail.local
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart fail2ban
+
+- name: Enable and start fail2ban
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+# ── Unattended upgrades ────────────────────────────────────────────────────────
+
+- name: Configure unattended-upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+# ── Directory structure ────────────────────────────────────────────────────────
+
+- name: Create KosmOS directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+  loop:
+    - "{{ kosmos_config_dir }}"
+    - "{{ kosmos_data_dir }}"
+    - "{{ kosmos_log_dir }}"
+    - /opt/kosmos
+
+- name: Copy MOTD script to /opt/kosmos/motd
+  copy:
+    src: "{{ playbook_dir }}/../../motd/kosmos-motd.sh"
+    dest: /opt/kosmos/motd/kosmos-motd.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Wire MOTD into update-motd.d
+  import_tasks: motd.yml
+
+- name: Deploy kosmos.env placeholder
+  copy:
+    dest: "{{ kosmos_config_dir }}/env"
+    content: |
+      # KosmOS environment — set your cloud API keys here.
+      # This file is sourced by all KosmOS systemd services.
+      ANTHROPIC_API_KEY=
+      OPENAI_API_KEY=
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0600"
+    force: false   # don't overwrite if the user has already set keys
