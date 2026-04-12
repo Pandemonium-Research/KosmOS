@@ -1,0 +1,26 @@
+# Built images
+dist/
+
+# Secrets
+config/kosmos.env
+*.env
+.env
+
+# Packer artifacts
+packer_cache/
+*.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
