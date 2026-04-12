@@ -91,10 +91,11 @@
       "id": 6,
       "title": "KosmOS Logs",
       "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
       "gridPos": { "x": 0, "y": 15, "w": 24, "h": 8 },
       "targets": [
         {
-          "datasource": { "type": "loki" },
+          "datasource": { "type": "loki", "uid": "loki" },
           "expr": "{job=\"kosmos\"}",
           "legendFormat": ""
         }
