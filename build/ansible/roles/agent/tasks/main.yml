@@ -1,61 +1,8 @@
 ---
-# roles/agent — Python 3.12 + uv, Node.js LTS, Rust toolchain, Claude Code CLI
+# roles/agent — Python packages, Node.js LTS, Rust toolchain, Claude Code CLI
+# Python 3.12, uv, and the kosmos venv are created by the base role.
 
-# ── Python 3.12 ────────────────────────────────────────────────────────────────
-
-- name: Add deadsnakes PPA for Python 3.12
-  apt_repository:
-    repo: ppa:deadsnakes/ppa
-    state: present
-    update_cache: true
-
-- name: Install Python 3.12 and build deps
-  apt:
-    name:
-      - python3.12
-      - python3.12-dev
-      - python3.12-venv
-      - python3.12-distutils
-      - libssl-dev
-      - libffi-dev
-      - libbz2-dev
-      - libreadline-dev
-      - libsqlite3-dev
-    state: present
-
-# ── uv — fast Python package manager ──────────────────────────────────────────
-
-- name: Install uv
-  shell: |
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-  args:
-    creates: /root/.local/bin/uv
-  environment:
-    UV_INSTALL_DIR: /usr/local/bin
-
-- name: Symlink uv to /usr/local/bin if needed
-  file:
-    src: /root/.local/bin/uv
-    dest: /usr/local/bin/uv
-    state: link
-    force: false
-  ignore_errors: true
-
-# ── Create kosmos venv ─────────────────────────────────────────────────────────
-
-- name: Create /opt/kosmos directory
-  file:
-    path: /opt/kosmos
-    state: directory
-    owner: "{{ kosmos_user }}"
-    group: "{{ kosmos_user }}"
-    mode: "0755"
-
-- name: Create kosmos Python venv with uv
-  become_user: "{{ kosmos_user }}"
-  command: "uv venv --python python3.12 {{ kosmos_venv }}"
-  args:
-    creates: "{{ kosmos_venv }}/bin/activate"
+# ── Python packages ────────────────────────────────────────────────────────────
 
 - name: Install Python packages into kosmos venv
   become_user: "{{ kosmos_user }}"
@@ -105,7 +52,7 @@
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
       sh -s -- -y --no-modify-path --default-toolchain stable
   args:
-    creates: /root/.cargo/bin/rustc
+    creates: /usr/local/cargo/bin/rustc
   environment:
     CARGO_HOME: /usr/local/cargo
     RUSTUP_HOME: /usr/local/rustup
