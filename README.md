@@ -8,50 +8,41 @@ A bootable Ubuntu 24.04 server image pre-loaded with LLMs, agent frameworks, and
 
 ## Prerequisites
 
-- [Packer](https://developer.hashicorp.com/packer/install) ≥ 1.11
 - [QEMU](https://www.qemu.org/download/) with KVM support (`qemu-system-x86_64`)
 - Ansible (`pip install ansible`)
 - ~50 GB free disk space (models + image)
-- 8 GB RAM minimum for the build VM (models run fine with less on the final image)
+- 8 GB RAM minimum for the build VM
 
-```bash
-packer plugins install github.com/hashicorp/qemu
-packer plugins install github.com/hashicorp/ansible
-```
+Packer and `sshpass` are installed automatically by the Makefile targets if missing.
 
 ---
 
 ## Build
 
 ```bash
-packer build build/kosmos.pkr.hcl
+make build
 ```
 
-Full rebuild from scratch in under 30 minutes on a modern machine with a warm model cache. Output lands in `dist/`:
-
-```
-dist/kosmos.qcow2   — QEMU disk image, ready to boot
-```
+Installs Packer if needed, then runs `packer build build/kosmos.pkr.hcl`. Output lands in `dist/kosmos.qcow2`.
+Full rebuild from scratch takes ~60–90 minutes (includes pulling ~7 GB of Ollama models).
 
 ---
 
 ## Run
 
 ```bash
-qemu-system-x86_64 \
-  -enable-kvm \
-  -m 8192 \
-  -smp 4 \
-  -drive file=dist/kosmos.qcow2,format=qcow2 \
-  -net nic -net user,hostfwd=tcp::2222-:22,hostfwd=tcp::4000-:4000,hostfwd=tcp::3000-:3000 \
-  -nographic
+make run    # boots in background, all 11 service ports forwarded to localhost
 ```
+
+All service ports are forwarded 1:1 so you can reach any service directly from the host (see `scripts/run.sh`).
 
 Then SSH in:
 
 ```bash
 ssh -p 2222 kosmos@localhost   # password: kosmos
 ```
+
+To shut down: `make stop`
 
 ---
 
@@ -72,9 +63,9 @@ curl http://localhost:4000/v1/chat/completions \
 python tests/agent_e2e.py
 ```
 
-**Run smoke tests:**
+**Run all tests (smoke + agent e2e):**
 ```bash
-bash tests/smoke.sh
+make test
 ```
 
 **Open Grafana:** `http://localhost:3000` — username `admin`, password `kosmos`
@@ -113,6 +104,10 @@ sudo systemctl restart litellm
 
 ```
 kosmOS/
+├── Makefile                   # build / run / stop / test targets
+├── scripts/
+│   ├── install-packer.sh      # installs Packer from HashiCorp apt repo
+│   └── run.sh                 # boots QCOW2 with all 11 ports forwarded
 ├── build/
 │   ├── kosmos.pkr.hcl         # Packer template — single entry point
 │   ├── http/                  # Ubuntu autoinstall cloud-init
