@@ -1,0 +1,45 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  network:
+    network:
+      version: 2
+      ethernets:
+        any:
+          match:
+            name: "en*"
+          dhcp4: true
+  storage:
+    layout:
+      name: lvm
+    swap:
+      size: 0
+  identity:
+    hostname: kosmos
+    username: kosmos
+    # password: kosmos  (hashed below)
+    password: "$6$rounds=4096$saltsaltsalt$MdvEpGZ7RFWZ9OUhRQ5Hn3i0wU5MJKF1v5xXFGQ7qDwMcNZ5PZblrCBZqmMEKN4UazHAoFzOefHIh8UGvV0G1"
+  ssh:
+    install-server: true
+    allow-pw: true
+  packages:
+    - curl
+    - wget
+    - git
+    - vim
+    - htop
+    - jq
+    - python3-pip
+    - apt-transport-https
+    - ca-certificates
+    - gnupg
+    - lsb-release
+    - build-essential
+  user-data:
+    disable_root: true
+  late-commands:
+    - echo 'kosmos ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/kosmos
+    - chmod 440 /target/etc/sudoers.d/kosmos
