@@ -105,7 +105,12 @@ build {
   provisioner "ansible" {
     playbook_file   = "${path.root}/ansible/site.yml"
     user            = var.ssh_username
-    use_proxy       = false
+    # use_proxy=true routes Ansible through Packer's already-established
+    # communicator connection (password auth) rather than opening a new
+    # direct SSH connection that requires key injection. On Ubuntu 24.04
+    # server, sshd disables PasswordAuthentication after cloud-init finalises,
+    # so key injection via a fresh password-auth session fails.
+    use_proxy       = true
     extra_arguments = [
       "--become",
       "-e", "ansible_become_password=${var.ssh_password}",
