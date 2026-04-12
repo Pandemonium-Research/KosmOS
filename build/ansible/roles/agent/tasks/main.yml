@@ -19,14 +19,22 @@
 
 # ── Node.js LTS (via NodeSource) ───────────────────────────────────────────────
 
-- name: Add NodeSource GPG key
-  apt_key:
-    url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
-    state: present
+- name: Create apt keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download NodeSource GPG key
+  shell: |
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+      | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  args:
+    creates: /etc/apt/keyrings/nodesource.gpg
 
 - name: Add NodeSource LTS repository
   apt_repository:
-    repo: "deb https://deb.nodesource.com/node_22.x nodistro main"
+    repo: "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main"
     state: present
     filename: nodesource
 
@@ -100,12 +108,26 @@
     group: "{{ kosmos_user }}"
     mode: "0644"
 
-- name: Copy .bashrc to .bash_profile for login shells
-  copy:
-    src: "{{ kosmos_home }}/.bashrc"
-    dest: "{{ kosmos_home }}/.bash_profile"
-    remote_src: true
+- name: Apply kosmos env block to .bash_profile for login shells
+  blockinfile:
+    path: "{{ kosmos_home }}/.bash_profile"
+    marker: "# {mark} KOSMOS env"
+    block: |
+      # KosmOS environment
+      source /etc/profile.d/rust.sh 2>/dev/null || true
+      export PATH="{{ kosmos_venv }}/bin:$PATH"
+      export VIRTUAL_ENV="{{ kosmos_venv }}"
+      export LITELLM_API_BASE="http://127.0.0.1:{{ litellm_port }}/v1"
+      export OPENAI_API_BASE="http://127.0.0.1:{{ litellm_port }}/v1"
+      export OPENAI_API_KEY="kosmos-local"
+
+      # Source cloud API keys if set
+      [ -f /etc/kosmos/env ] && source /etc/kosmos/env
+
+      # Aliases
+      alias claude='claude --model claude-3-5-sonnet'
+      alias ll='ls -lah'
+    create: true
     owner: "{{ kosmos_user }}"
     group: "{{ kosmos_user }}"
     mode: "0644"
-    force: false
