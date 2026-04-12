@@ -1,0 +1,46 @@
+# SearXNG settings — KosmOS minimal config
+# Full docs: https://docs.searxng.org/admin/settings/settings.html
+
+use_default_settings: true
+
+general:
+  instance_name: KosmOS Search
+  debug: false
+
+server:
+  secret_key: "kosmos-searxng-secret-change-me"
+  limiter: false
+  public_instance: false
+  image_proxy: false
+
+ui:
+  default_locale: en
+  default_theme: simple
+  results_on_new_tab: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    disabled: false
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false

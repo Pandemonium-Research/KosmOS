@@ -1,0 +1,17 @@
+[Unit]
+Description=SearXNG search engine (Docker Compose)
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User={{ kosmos_user }}
+WorkingDirectory=/opt/kosmos/searxng
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+StandardOutput=append:{{ kosmos_log_dir }}/searxng.log
+StandardError=append:{{ kosmos_log_dir }}/searxng.log
+
+[Install]
+WantedBy=multi-user.target

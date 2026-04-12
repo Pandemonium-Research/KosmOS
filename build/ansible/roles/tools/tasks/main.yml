@@ -1,0 +1,104 @@
+---
+# roles/tools — FastMCP server, SearXNG (Docker), Playwright (handled in agent role)
+
+# ── FastMCP server ─────────────────────────────────────────────────────────────
+
+- name: Create FastMCP server directory
+  file:
+    path: /opt/kosmos/mcp
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Deploy FastMCP server script
+  copy:
+    src: mcp_server.py
+    dest: /opt/kosmos/mcp/server.py
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Deploy FastMCP systemd service
+  template:
+    src: fastmcp.service.j2
+    dest: /etc/systemd/system/fastmcp.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart fastmcp
+
+- name: Enable and start FastMCP
+  systemd:
+    name: fastmcp
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# ── SearXNG (Docker) ───────────────────────────────────────────────────────────
+
+- name: Install Docker prerequisites
+  apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+    state: present
+
+- name: Add kosmos user to docker group
+  user:
+    name: "{{ kosmos_user }}"
+    groups: docker
+    append: true
+
+- name: Enable Docker service
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Create SearXNG config directory
+  file:
+    path: /opt/kosmos/searxng
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Deploy SearXNG settings
+  copy:
+    src: searxng_settings.yml
+    dest: /opt/kosmos/searxng/settings.yml
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0644"
+
+- name: Deploy SearXNG docker-compose
+  template:
+    src: searxng-compose.yml.j2
+    dest: /opt/kosmos/searxng/docker-compose.yml
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0644"
+
+- name: Deploy SearXNG systemd service
+  template:
+    src: searxng.service.j2
+    dest: /etc/systemd/system/searxng.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart searxng
+
+- name: Enable and start SearXNG
+  systemd:
+    name: searxng
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# ── bubblewrap (sandboxed subprocess runner) ───────────────────────────────────
+
+- name: Install bubblewrap
+  apt:
+    name: bubblewrap
+    state: present

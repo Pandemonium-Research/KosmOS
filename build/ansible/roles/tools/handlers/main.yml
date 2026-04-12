@@ -1,0 +1,14 @@
+---
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart fastmcp
+  systemd:
+    name: fastmcp
+    state: restarted
+
+- name: restart searxng
+  systemd:
+    name: searxng
+    state: restarted
