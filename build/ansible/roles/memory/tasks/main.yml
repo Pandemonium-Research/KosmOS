@@ -1,0 +1,55 @@
+---
+# roles/memory — ChromaDB persistent vector store
+
+- name: Install ChromaDB into kosmos venv
+  pip:
+    name:
+      - chromadb
+      - sentence-transformers    # local embeddings — no API key needed
+    virtualenv: "{{ kosmos_venv }}"
+    virtualenv_python: python3.12
+    state: present
+
+- name: Create ChromaDB data directory
+  file:
+    path: "{{ kosmos_data_dir }}/chroma"
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Deploy ChromaDB systemd service
+  template:
+    src: chromadb.service.j2
+    dest: /etc/systemd/system/chromadb.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart chromadb
+
+- name: Enable and start ChromaDB
+  systemd:
+    name: chromadb
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for ChromaDB to be ready
+  uri:
+    url: "http://127.0.0.1:{{ chromadb_port }}/api/v1/heartbeat"
+    status_code: 200
+  register: chroma_ready
+  retries: 15
+  delay: 3
+  until: chroma_ready.status == 200
+
+- name: Create default KosmOS collection
+  uri:
+    url: "http://127.0.0.1:{{ chromadb_port }}/api/v1/collections"
+    method: POST
+    body_format: json
+    body:
+      name: "kosmos"
+      metadata:
+        description: "Default KosmOS agent memory collection"
+    status_code: [200, 201, 409]   # 409 = already exists, that's fine

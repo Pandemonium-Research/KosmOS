@@ -1,0 +1,23 @@
+[Unit]
+Description=ChromaDB vector store
+After=network.target
+
+[Service]
+Type=simple
+User={{ kosmos_user }}
+EnvironmentFile={{ kosmos_config_dir }}/env
+Environment="CHROMA_SERVER_HOST=127.0.0.1"
+Environment="CHROMA_SERVER_HTTP_PORT={{ chromadb_port }}"
+Environment="IS_PERSISTENT=TRUE"
+Environment="PERSIST_DIRECTORY={{ kosmos_data_dir }}/chroma"
+ExecStart={{ kosmos_venv }}/bin/chroma run \
+    --host 127.0.0.1 \
+    --port {{ chromadb_port }} \
+    --path {{ kosmos_data_dir }}/chroma
+Restart=always
+RestartSec=5
+StandardOutput=append:{{ kosmos_log_dir }}/chromadb.log
+StandardError=append:{{ kosmos_log_dir }}/chromadb.log
+
+[Install]
+WantedBy=multi-user.target
