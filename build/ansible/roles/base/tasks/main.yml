@@ -119,6 +119,39 @@
 - name: Wire MOTD into update-motd.d
   import_tasks: motd.yml
 
+# ── Python 3.12 + uv + kosmos venv ────────────────────────────────────────────
+# Done here so every subsequent role (llm, tools, memory …) can rely on the
+# venv already existing.  Ubuntu 24.04 ships Python 3.12 in main repos —
+# no external PPA needed.
+
+- name: Install Python 3.12 and build deps
+  apt:
+    name:
+      - python3.12
+      - python3.12-dev
+      - python3.12-venv
+      - libssl-dev
+      - libffi-dev
+      - libbz2-dev
+      - libreadline-dev
+      - libsqlite3-dev
+    state: present
+
+- name: Install uv (fast Python package manager)
+  shell: curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    creates: /usr/local/bin/uv
+  environment:
+    UV_INSTALL_DIR: /usr/local/bin
+
+- name: Create kosmos Python venv with uv
+  become_user: "{{ kosmos_user }}"
+  command: "uv venv --python python3.12 {{ kosmos_venv }}"
+  args:
+    creates: "{{ kosmos_venv }}/bin/activate"
+
+# ── kosmos.env placeholder ─────────────────────────────────────────────────────
+
 - name: Deploy kosmos.env placeholder
   copy:
     dest: "{{ kosmos_config_dir }}/env"
