@@ -63,14 +63,14 @@
     },
     {
       "id": 4,
-      "title": "Ollama — Active Requests",
+      "title": "Disk Usage %",
       "type": "timeseries",
       "gridPos": { "x": 0, "y": 9, "w": 12, "h": 6 },
       "targets": [
         {
           "datasource": { "type": "prometheus" },
-          "expr": "ollama_requests_total",
-          "legendFormat": "{{ model }}"
+          "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} * 100)",
+          "legendFormat": "Disk /"
         }
       ]
     },
@@ -82,7 +82,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus" },
-          "expr": "rate(litellm_request_total[1m])",
+          "expr": "rate(litellm_requests_total[1m])",
           "legendFormat": "req/s"
         }
       ]
