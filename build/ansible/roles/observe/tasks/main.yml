@@ -185,13 +185,16 @@
     shell: /bin/false
     create_home: false
 
-- name: Create Loki data directory
+- name: Create Loki data directories
   file:
-    path: /var/lib/loki
+    path: "{{ item }}"
     state: directory
     owner: loki
     group: loki
     mode: "0755"
+  loop:
+    - /var/lib/loki
+    - /var/lib/loki/compactor   # required by compactor for retention enforcement
 
 - name: Create Loki config directory
   file:
