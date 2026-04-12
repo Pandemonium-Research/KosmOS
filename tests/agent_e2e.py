@@ -65,7 +65,10 @@ def fail(msg: str) -> None:
 
 def search(query: str) -> list[dict]:
     log(1, f"Searching SearXNG: '{query}'")
-    params = urllib.parse.urlencode({"q": query, "format": "json", "categories": "general", "engines": "google,duckduckgo"})
+    # No explicit engines= — let SearXNG use whatever is locally configured.
+    # Pinning to specific engines (e.g. google, duckduckgo) causes intermittent
+    # failures due to rate-limiting and CAPTCHA on fresh IPs.
+    params = urllib.parse.urlencode({"q": query, "format": "json", "categories": "general"})
     url = f"{SEARXNG_BASE}/search?{params}"
     try:
         results = http_get(url)
@@ -74,7 +77,7 @@ def search(query: str) -> list[dict]:
 
     hits = results.get("results", [])[:5]
     if not hits:
-        fail("SearXNG returned 0 results — is the service running?")
+        fail("SearXNG returned 0 results — check that at least one engine is enabled in /opt/kosmos/searxng/settings.yml")
 
     ok(f"Got {len(hits)} results")
     for i, r in enumerate(hits, 1):
