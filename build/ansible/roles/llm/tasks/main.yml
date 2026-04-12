@@ -100,7 +100,8 @@
 
 - name: Wait for LiteLLM to be ready
   uri:
-    url: "http://127.0.0.1:{{ litellm_port }}/health"
+    # /health requires the master key; /health/liveliness is auth-free
+    url: "http://127.0.0.1:{{ litellm_port }}/health/liveliness"
     status_code: 200
   register: litellm_ready
   retries: 15
