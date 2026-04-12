@@ -1,0 +1,20 @@
+[Unit]
+Description=LiteLLM OpenAI-compatible LLM proxy
+After=network.target ollama.service
+Requires=ollama.service
+
+[Service]
+Type=simple
+User={{ kosmos_user }}
+EnvironmentFile={{ kosmos_config_dir }}/env
+ExecStart={{ kosmos_venv }}/bin/litellm \
+    --config {{ kosmos_config_dir }}/litellm_config.yaml \
+    --port {{ litellm_port }} \
+    --host 0.0.0.0
+Restart=always
+RestartSec=5
+StandardOutput=append:{{ kosmos_log_dir }}/litellm.log
+StandardError=append:{{ kosmos_log_dir }}/litellm.log
+
+[Install]
+WantedBy=multi-user.target

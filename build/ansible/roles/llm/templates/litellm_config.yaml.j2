@@ -1,0 +1,40 @@
+# LiteLLM proxy config — KosmOS
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+
+model_list:
+  # Local models via Ollama (always available, no API key)
+  - model_name: "{{ kosmos_default_model }}"
+    litellm_params:
+      model: "ollama/{{ kosmos_default_model }}"
+      api_base: "http://{{ ollama_host }}:{{ ollama_port }}"
+
+  - model_name: "{{ kosmos_fallback_model }}"
+    litellm_params:
+      model: "ollama/{{ kosmos_fallback_model }}"
+      api_base: "http://{{ ollama_host }}:{{ ollama_port }}"
+
+  # Cloud models — activated only when API keys are present in /etc/kosmos/env
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: "os.environ/OPENAI_API_KEY"
+
+litellm_settings:
+  # Default to local model if no model specified
+  default_model: "{{ kosmos_default_model }}"
+  drop_params: true
+  set_verbose: false
+
+general_settings:
+  master_key: "kosmos-local"   # change for multi-user deployments
+
+router_settings:
+  routing_strategy: simple-shuffle
+  fallbacks:
+    - "{{ kosmos_default_model }}":
+        - "{{ kosmos_fallback_model }}"

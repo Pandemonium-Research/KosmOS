@@ -1,0 +1,111 @@
+---
+# roles/llm — Ollama (local inference) + LiteLLM (OpenAI-compatible gateway)
+
+# ── Ollama ─────────────────────────────────────────────────────────────────────
+
+- name: Download Ollama install script
+  get_url:
+    url: https://ollama.com/install.sh
+    dest: /tmp/ollama-install.sh
+    mode: "0755"
+
+- name: Run Ollama installer
+  command: /tmp/ollama-install.sh
+  args:
+    creates: /usr/local/bin/ollama
+  environment:
+    OLLAMA_HOST: "{{ ollama_host }}:{{ ollama_port }}"
+
+- name: Create ollama systemd override directory
+  file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    mode: "0755"
+
+- name: Configure Ollama systemd override
+  copy:
+    dest: /etc/systemd/system/ollama.service.d/override.conf
+    content: |
+      [Service]
+      Environment="OLLAMA_HOST={{ ollama_host }}:{{ ollama_port }}"
+      Environment="OLLAMA_MODELS=/var/lib/ollama/models"
+      Restart=always
+      RestartSec=5
+    mode: "0644"
+  notify: reload systemd
+
+- name: Enable and start Ollama
+  systemd:
+    name: ollama
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for Ollama to be ready
+  uri:
+    url: "http://{{ ollama_host }}:{{ ollama_port }}/api/tags"
+    status_code: 200
+  register: ollama_ready
+  retries: 20
+  delay: 5
+  until: ollama_ready.status == 200
+
+- name: Pull default model into image
+  command: "ollama pull {{ kosmos_default_model }}"
+  environment:
+    OLLAMA_HOST: "http://{{ ollama_host }}:{{ ollama_port }}"
+  register: model_pull
+  changed_when: "'already up to date' not in model_pull.stdout"
+  timeout: 1200   # 20 min — 7B models are ~4 GB
+
+- name: Pull fallback model into image
+  command: "ollama pull {{ kosmos_fallback_model }}"
+  environment:
+    OLLAMA_HOST: "http://{{ ollama_host }}:{{ ollama_port }}"
+  register: fallback_pull
+  changed_when: "'already up to date' not in fallback_pull.stdout"
+  timeout: 600
+
+# ── LiteLLM proxy ─────────────────────────────────────────────────────────────
+
+- name: Install LiteLLM into kosmos venv
+  pip:
+    name:
+      - "litellm[proxy]"
+      - uvicorn
+    virtualenv: "{{ kosmos_venv }}"
+    virtualenv_python: python3.12
+    state: present
+
+- name: Deploy LiteLLM config
+  template:
+    src: litellm_config.yaml.j2
+    dest: "{{ kosmos_config_dir }}/litellm_config.yaml"
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0644"
+
+- name: Deploy LiteLLM systemd service
+  template:
+    src: litellm.service.j2
+    dest: /etc/systemd/system/litellm.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart litellm
+
+- name: Enable and start LiteLLM
+  systemd:
+    name: litellm
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for LiteLLM to be ready
+  uri:
+    url: "http://127.0.0.1:{{ litellm_port }}/health"
+    status_code: 200
+  register: litellm_ready
+  retries: 15
+  delay: 5
+  until: litellm_ready.status == 200
