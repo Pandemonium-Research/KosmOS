@@ -64,22 +64,26 @@ source "qemu" "kosmos" {
   ssh_timeout      = "90m"   # covers slow model pulls (qwen2.5:7b ~4 GB + llama3.2:3b ~2 GB)
 
   # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP.
-  # boot_wait gives GRUB enough time to appear before we start sending keys.
-  # The inter-keypress <wait3> pauses prevent missed inputs on slow VMs.
-  boot_wait = "10s"
+  #
+  # We use the GRUB command-line ('c') approach instead of editing the menu
+  # entry ('e' + arrow navigation) because the entry structure varies across
+  # 24.04.x point releases, making arrow-count navigation fragile.
+  #
+  # 'c' opens the GRUB command prompt unconditionally; we then type the exact
+  # kernel + initrd lines and boot.  The ';' in ds=nocloud-net;s=... is a GRUB
+  # command separator, so we wrap the value in single quotes.
+  boot_wait = "12s"
   boot_command = [
-    "<spacebar><wait3>",
-    "e<wait3>",
-    "<down><down><down><end>",
-    " autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/",
-    "<f10><wait>"
+    "c<wait3>",
+    "linux /casper/vmlinuz autoinstall 'ds=nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/'<enter><wait5>",
+    "initrd /casper/initrd<enter><wait3>",
+    "boot<enter>"
   ]
 
   http_directory   = "${path.root}/http"
   shutdown_command = "echo '${var.ssh_password}' | sudo -S shutdown -P now"
 
   qemuargs = [
-    ["-display", "none"],
     ["-serial", "stdio"]
   ]
 }
