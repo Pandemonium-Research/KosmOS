@@ -12,6 +12,8 @@ Start: python /opt/kosmos/mcp/server.py
 Port : FASTMCP_PORT env var (default 8080)
 """
 
+import ast
+import operator as _op
 import os
 import re
 import subprocess
@@ -154,7 +156,35 @@ def web_fetch(url: str, max_bytes: int = 65536) -> str:
 
 # ── calculator ─────────────────────────────────────────────────────────────────
 
-_SAFE_CALC_RE = re.compile(r"^[\d\s\+\-\*/\(\)\.\^%]+$")
+_CALC_OPS: dict = {
+    ast.Add:  _op.add,
+    ast.Sub:  _op.sub,
+    ast.Mult: _op.mul,
+    ast.Div:  _op.truediv,
+    ast.Pow:  _op.pow,
+    ast.Mod:  _op.mod,
+    ast.USub: _op.neg,
+    ast.UAdd: _op.pos,
+}
+
+
+def _eval_node(node: ast.expr) -> float:
+    """Recursively evaluate a parsed AST node using only allowed operations."""
+    if isinstance(node, ast.Constant):
+        if not isinstance(node.value, (int, float)):
+            raise ValueError(f"Unsupported literal type: {type(node.value).__name__}")
+        return float(node.value)
+    if isinstance(node, ast.BinOp):
+        op = _CALC_OPS.get(type(node.op))
+        if op is None:
+            raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
+        return op(_eval_node(node.left), _eval_node(node.right))
+    if isinstance(node, ast.UnaryOp):
+        op = _CALC_OPS.get(type(node.op))
+        if op is None:
+            raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+        return op(_eval_node(node.operand))
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
 @mcp.tool()
@@ -163,10 +193,12 @@ def calculator(expression: str) -> float:
     Evaluate a safe arithmetic expression.
     Supports: + - * / ** % and parentheses.
     """
-    if not _SAFE_CALC_RE.match(expression):
-        raise ValueError("Expression contains disallowed characters")
-    expression = expression.replace("^", "**")
-    return float(eval(expression, {"__builtins__": {}}))  # noqa: S307
+    expression = expression.strip().replace("^", "**")
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Invalid expression: {exc}") from exc
+    return _eval_node(tree.body)
 
 
 # ── entrypoint ─────────────────────────────────────────────────────────────────
