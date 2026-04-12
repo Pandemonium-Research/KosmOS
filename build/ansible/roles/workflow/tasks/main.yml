@@ -1,0 +1,66 @@
+---
+# roles/workflow — Temporal dev server (single binary, systemd service)
+
+- name: Get latest Temporal CLI version
+  uri:
+    url: https://api.github.com/repos/temporalio/cli/releases/latest
+    return_content: true
+  register: temporal_release
+
+- name: Set Temporal version fact
+  set_fact:
+    temporal_version: "{{ temporal_release.json.tag_name | regex_replace('^v', '') }}"
+
+- name: Download Temporal CLI binary
+  get_url:
+    url: "https://github.com/temporalio/cli/releases/download/v{{ temporal_version }}/temporal_cli_{{ temporal_version }}_linux_amd64.tar.gz"
+    dest: "/tmp/temporal.tar.gz"
+    mode: "0644"
+
+- name: Extract Temporal CLI
+  unarchive:
+    src: /tmp/temporal.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    include:
+      - temporal
+    creates: /usr/local/bin/temporal
+
+- name: Ensure Temporal binary is executable
+  file:
+    path: /usr/local/bin/temporal
+    mode: "0755"
+
+- name: Create Temporal data directory
+  file:
+    path: "{{ kosmos_data_dir }}/temporal"
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Deploy Temporal systemd service
+  template:
+    src: temporal.service.j2
+    dest: /etc/systemd/system/temporal.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart temporal
+
+- name: Enable and start Temporal dev server
+  systemd:
+    name: temporal
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for Temporal UI to be ready
+  uri:
+    url: "http://127.0.0.1:{{ temporal_ui_port }}"
+    status_code: 200
+  register: temporal_ready
+  retries: 20
+  delay: 3
+  until: temporal_ready.status == 200
+  ignore_errors: true   # UI might 404 on root but gRPC is what matters

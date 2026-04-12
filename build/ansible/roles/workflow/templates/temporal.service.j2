@@ -1,0 +1,20 @@
+[Unit]
+Description=Temporal dev server
+After=network.target
+
+[Service]
+Type=simple
+User={{ kosmos_user }}
+ExecStart=/usr/local/bin/temporal server start-dev \
+    --db-filename {{ kosmos_data_dir }}/temporal/temporal.db \
+    --ui-port {{ temporal_ui_port }} \
+    --port {{ temporal_grpc_port }} \
+    --namespace kosmos \
+    --log-level warn
+Restart=always
+RestartSec=5
+StandardOutput=append:{{ kosmos_log_dir }}/temporal.log
+StandardError=append:{{ kosmos_log_dir }}/temporal.log
+
+[Install]
+WantedBy=multi-user.target
