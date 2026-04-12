@@ -14,7 +14,8 @@ help:           ## Show this help
 
 build:          ## Build the KosmOS QCOW2 image (~60-90 min)
 	@which packer >/dev/null 2>&1 || bash scripts/install-packer.sh
-	packer build build/kosmos.pkr.hcl
+	@# Packer requires dist/ to not exist; run 'make clean' first if rebuilding.
+	LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 packer build build/kosmos.pkr.hcl
 
 run: $(DIST)   ## Boot the image in the background (log → /tmp/kosmos-qemu.log)
 	@echo "Booting KosmOS VM..."

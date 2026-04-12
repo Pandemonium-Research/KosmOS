@@ -18,7 +18,7 @@ variable "ubuntu_iso_url" {
 }
 
 variable "ubuntu_iso_checksum" {
-  default = "sha256:d6dab0c3a657988501b4de45258fd0c6ea2e8ef97de4508e8b913cb96ac8c6e1"
+  default = "sha256:d6dab0c3a657988501b4bd76f1297c053df710e06e0c3aece60dead24f270b4d"
 }
 
 variable "vm_name" {
