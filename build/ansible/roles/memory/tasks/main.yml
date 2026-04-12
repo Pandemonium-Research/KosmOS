@@ -2,13 +2,10 @@
 # roles/memory — ChromaDB persistent vector store
 
 - name: Install ChromaDB into kosmos venv
-  pip:
-    name:
-      - chromadb
-      - sentence-transformers    # local embeddings — no API key needed
-    virtualenv: "{{ kosmos_venv }}"
-    virtualenv_python: python3.12
-    state: present
+  become_user: "{{ kosmos_user }}"
+  command: "uv pip install --python {{ kosmos_venv }}/bin/python chromadb sentence-transformers"
+  register: chroma_pip
+  changed_when: "'already installed' not in chroma_pip.stdout"
 
 - name: Create ChromaDB data directory
   file:

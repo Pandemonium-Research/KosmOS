@@ -69,13 +69,10 @@
 # ── LiteLLM proxy ─────────────────────────────────────────────────────────────
 
 - name: Install LiteLLM into kosmos venv
-  pip:
-    name:
-      - "litellm[proxy]"
-      - uvicorn
-    virtualenv: "{{ kosmos_venv }}"
-    virtualenv_python: python3.12
-    state: present
+  become_user: "{{ kosmos_user }}"
+  command: "uv pip install --python {{ kosmos_venv }}/bin/python 'litellm[proxy]' uvicorn"
+  register: litellm_pip
+  changed_when: "'already installed' not in litellm_pip.stdout"
 
 - name: Deploy LiteLLM config
   template:
