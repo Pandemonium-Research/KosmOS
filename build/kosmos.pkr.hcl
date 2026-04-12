@@ -61,13 +61,15 @@ source "qemu" "kosmos" {
 
   ssh_username     = var.ssh_username
   ssh_password     = var.ssh_password
-  ssh_timeout      = "90m"
+  ssh_timeout      = "90m"   # covers slow model pulls (qwen2.5:7b ~4 GB + llama3.2:3b ~2 GB)
 
-  # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP
-  boot_wait = "5s"
+  # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP.
+  # boot_wait gives GRUB enough time to appear before we start sending keys.
+  # The inter-keypress <wait3> pauses prevent missed inputs on slow VMs.
+  boot_wait = "10s"
   boot_command = [
-    "<spacebar><wait>",
-    "e<wait>",
+    "<spacebar><wait3>",
+    "e<wait3>",
     "<down><down><down><end>",
     " autoinstall ds=nocloud-net\\;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/",
     "<f10><wait>"
