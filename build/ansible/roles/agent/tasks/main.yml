@@ -1,0 +1,164 @@
+---
+# roles/agent — Python 3.12 + uv, Node.js LTS, Rust toolchain, Claude Code CLI
+
+# ── Python 3.12 ────────────────────────────────────────────────────────────────
+
+- name: Add deadsnakes PPA for Python 3.12
+  apt_repository:
+    repo: ppa:deadsnakes/ppa
+    state: present
+    update_cache: true
+
+- name: Install Python 3.12 and build deps
+  apt:
+    name:
+      - python3.12
+      - python3.12-dev
+      - python3.12-venv
+      - python3.12-distutils
+      - libssl-dev
+      - libffi-dev
+      - libbz2-dev
+      - libreadline-dev
+      - libsqlite3-dev
+    state: present
+
+# ── uv — fast Python package manager ──────────────────────────────────────────
+
+- name: Install uv
+  shell: |
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    creates: /root/.local/bin/uv
+  environment:
+    UV_INSTALL_DIR: /usr/local/bin
+
+- name: Symlink uv to /usr/local/bin if needed
+  file:
+    src: /root/.local/bin/uv
+    dest: /usr/local/bin/uv
+    state: link
+    force: false
+  ignore_errors: true
+
+# ── Create kosmos venv ─────────────────────────────────────────────────────────
+
+- name: Create /opt/kosmos directory
+  file:
+    path: /opt/kosmos
+    state: directory
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0755"
+
+- name: Create kosmos Python venv with uv
+  become_user: "{{ kosmos_user }}"
+  command: "uv venv --python python3.12 {{ kosmos_venv }}"
+  args:
+    creates: "{{ kosmos_venv }}/bin/activate"
+
+- name: Install Python packages into kosmos venv
+  become_user: "{{ kosmos_user }}"
+  command: "uv pip install --python {{ kosmos_venv }}/bin/python {{ item }}"
+  loop: "{{ kosmos_python_packages }}"
+  register: pip_install
+  changed_when: "'already installed' not in pip_install.stdout"
+
+- name: Install Playwright browsers
+  become_user: "{{ kosmos_user }}"
+  command: "{{ kosmos_venv }}/bin/playwright install chromium --with-deps"
+  args:
+    creates: "{{ kosmos_home }}/.cache/ms-playwright"
+
+# ── Node.js LTS (via NodeSource) ───────────────────────────────────────────────
+
+- name: Add NodeSource GPG key
+  apt_key:
+    url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+    state: present
+
+- name: Add NodeSource LTS repository
+  apt_repository:
+    repo: "deb https://deb.nodesource.com/node_22.x nodistro main"
+    state: present
+    filename: nodesource
+
+- name: Install Node.js LTS
+  apt:
+    name: nodejs
+    state: present
+    update_cache: true
+
+- name: Install npm global packages
+  npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  loop:
+    - typescript
+    - ts-node
+
+# ── Rust toolchain ─────────────────────────────────────────────────────────────
+
+- name: Install Rust via rustup (system-wide)
+  shell: |
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+      sh -s -- -y --no-modify-path --default-toolchain stable
+  args:
+    creates: /root/.cargo/bin/rustc
+  environment:
+    CARGO_HOME: /usr/local/cargo
+    RUSTUP_HOME: /usr/local/rustup
+
+- name: Add Rust to system PATH via profile.d
+  copy:
+    dest: /etc/profile.d/rust.sh
+    content: |
+      export CARGO_HOME=/usr/local/cargo
+      export RUSTUP_HOME=/usr/local/rustup
+      export PATH="${CARGO_HOME}/bin:${PATH}"
+    mode: "0644"
+
+# ── Claude Code CLI ────────────────────────────────────────────────────────────
+
+- name: Install Claude Code CLI via npm
+  npm:
+    name: "@anthropic-ai/claude-code"
+    global: true
+    state: present
+
+# ── Shell environment ──────────────────────────────────────────────────────────
+
+- name: Configure kosmos user environment
+  blockinfile:
+    path: "{{ kosmos_home }}/.bashrc"
+    marker: "# {mark} KOSMOS env"
+    block: |
+      # KosmOS environment
+      source /etc/profile.d/rust.sh 2>/dev/null || true
+      export PATH="{{ kosmos_venv }}/bin:$PATH"
+      export VIRTUAL_ENV="{{ kosmos_venv }}"
+      export LITELLM_API_BASE="http://127.0.0.1:{{ litellm_port }}/v1"
+      export OPENAI_API_BASE="http://127.0.0.1:{{ litellm_port }}/v1"
+      export OPENAI_API_KEY="kosmos-local"
+
+      # Source cloud API keys if set
+      [ -f /etc/kosmos/env ] && source /etc/kosmos/env
+
+      # Aliases
+      alias claude='claude --model claude-3-5-sonnet'
+      alias ll='ls -lah'
+    create: true
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0644"
+
+- name: Copy .bashrc to .bash_profile for login shells
+  copy:
+    src: "{{ kosmos_home }}/.bashrc"
+    dest: "{{ kosmos_home }}/.bash_profile"
+    remote_src: true
+    owner: "{{ kosmos_user }}"
+    group: "{{ kosmos_user }}"
+    mode: "0644"
+    force: false
