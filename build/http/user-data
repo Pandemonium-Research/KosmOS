@@ -23,7 +23,7 @@ autoinstall:
     # password: kosmos
     # Hash uses a static salt (intentional for a dev image — do not reuse for production).
     # Regenerate with: python3 -c "import crypt; print(crypt.crypt('yourpass', crypt.mksalt(crypt.METHOD_SHA512)))"
-    password: "$6$rounds=4096$saltsaltsalt$MdvEpGZ7RFWZ9OUhRQ5Hn3i0wU5MJKF1v5xXFGQ7qDwMcNZ5PZblrCBZqmMEKN4UazHAoFzOefHIh8UGvV0G1"
+    password: "$6$rounds=4096$saltsaltsalt$auhF/gtdoDJ4Unxg24MB7nby3LZxJMrf9WENjHOTiWSB1E5Ye4yk3fjzO0rqGctslG5mNh6EFSndRf4HwtbCE."
   ssh:
     install-server: true
     allow-pw: true
