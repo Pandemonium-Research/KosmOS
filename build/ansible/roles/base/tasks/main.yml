@@ -107,7 +107,14 @@
     - "{{ kosmos_data_dir }}"
     - "{{ kosmos_log_dir }}"
     - /opt/kosmos
+    - /opt/kosmos/motd   # must exist before the MOTD copy task below
 
+# Two-file MOTD design:
+#   /etc/update-motd.d/99-kosmos  — thin stub (roles/base/files/kosmos-motd.sh)
+#                                   installed by motd.yml; just calls the script below.
+#   /opt/kosmos/motd/kosmos-motd.sh — full implementation (repo root motd/)
+#                                     can be updated post-boot via git pull without
+#                                     touching the system motd.d directory.
 - name: Copy MOTD script to /opt/kosmos/motd
   copy:
     src: "{{ playbook_dir }}/../../motd/kosmos-motd.sh"
@@ -116,7 +123,7 @@
     group: root
     mode: "0755"
 
-- name: Wire MOTD into update-motd.d
+- name: Wire MOTD stub into update-motd.d
   import_tasks: motd.yml
 
 # ── Python 3.12 + uv + kosmos venv ────────────────────────────────────────────
