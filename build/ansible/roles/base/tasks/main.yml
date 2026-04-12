@@ -160,6 +160,10 @@
       # This file is sourced by all KosmOS systemd services.
       ANTHROPIC_API_KEY=
       OPENAI_API_KEY=
+
+      # LiteLLM proxy authentication key.
+      # Change this before adding real API keys or exposing port 4000.
+      LITELLM_MASTER_KEY=kosmos-local
     owner: "{{ kosmos_user }}"
     group: "{{ kosmos_user }}"
     mode: "0600"
