@@ -1,0 +1,339 @@
+---
+# roles/observe — Prometheus + Loki + Promtail + Grafana
+
+# ── Prometheus ─────────────────────────────────────────────────────────────────
+
+- name: Create prometheus system user
+  user:
+    name: prometheus
+    system: true
+    shell: /bin/false
+    create_home: false
+
+- name: Create Prometheus directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  loop:
+    - /etc/prometheus
+    - /var/lib/prometheus
+
+- name: Get latest Prometheus version
+  uri:
+    url: https://api.github.com/repos/prometheus/prometheus/releases/latest
+    return_content: true
+  register: prom_release
+
+- name: Set Prometheus version fact
+  set_fact:
+    prometheus_version: "{{ prom_release.json.tag_name | regex_replace('^v', '') }}"
+
+- name: Download Prometheus
+  get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: /tmp/prometheus.tar.gz
+    mode: "0644"
+
+- name: Extract Prometheus
+  unarchive:
+    src: /tmp/prometheus.tar.gz
+    dest: /tmp
+    remote_src: true
+
+- name: Install Prometheus binaries
+  copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    mode: "0755"
+  loop:
+    - prometheus
+    - promtool
+
+- name: Deploy Prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: "0644"
+  notify: restart prometheus
+
+- name: Deploy Prometheus systemd service
+  copy:
+    dest: /etc/systemd/system/prometheus.service
+    content: |
+      [Unit]
+      Description=Prometheus monitoring
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=prometheus
+      ExecStart=/usr/local/bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/var/lib/prometheus \
+          --storage.tsdb.retention.time=7d \
+          --web.listen-address=127.0.0.1:{{ prometheus_port }} \
+          --log.level=warn
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart prometheus
+
+# ── node_exporter ──────────────────────────────────────────────────────────────
+
+- name: Get latest node_exporter version
+  uri:
+    url: https://api.github.com/repos/prometheus/node_exporter/releases/latest
+    return_content: true
+  register: ne_release
+
+- name: Set node_exporter version fact
+  set_fact:
+    node_exporter_version: "{{ ne_release.json.tag_name | regex_replace('^v', '') }}"
+
+- name: Download node_exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: /tmp/node_exporter.tar.gz
+    mode: "0644"
+
+- name: Extract and install node_exporter
+  shell: |
+    tar -xzf /tmp/node_exporter.tar.gz -C /tmp
+    cp /tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter /usr/local/bin/
+    chmod 0755 /usr/local/bin/node_exporter
+  args:
+    creates: /usr/local/bin/node_exporter
+
+- name: Deploy node_exporter systemd service
+  copy:
+    dest: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Prometheus node exporter
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=prometheus
+      ExecStart=/usr/local/bin/node_exporter \
+          --web.listen-address=127.0.0.1:9100
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart node_exporter
+
+# ── Loki + Promtail ────────────────────────────────────────────────────────────
+
+- name: Get latest Loki version
+  uri:
+    url: https://api.github.com/repos/grafana/loki/releases/latest
+    return_content: true
+  register: loki_release
+
+- name: Set Loki version fact
+  set_fact:
+    loki_version: "{{ loki_release.json.tag_name | regex_replace('^v', '') }}"
+
+- name: Download Loki
+  get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/loki-linux-amd64.zip"
+    dest: /tmp/loki.zip
+    mode: "0644"
+
+- name: Extract and install Loki
+  shell: |
+    cd /tmp && unzip -o loki.zip loki-linux-amd64
+    cp /tmp/loki-linux-amd64 /usr/local/bin/loki
+    chmod 0755 /usr/local/bin/loki
+  args:
+    creates: /usr/local/bin/loki
+
+- name: Download Promtail
+  get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/promtail-linux-amd64.zip"
+    dest: /tmp/promtail.zip
+    mode: "0644"
+
+- name: Extract and install Promtail
+  shell: |
+    cd /tmp && unzip -o promtail.zip promtail-linux-amd64
+    cp /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+    chmod 0755 /usr/local/bin/promtail
+  args:
+    creates: /usr/local/bin/promtail
+
+- name: Create loki user and directories
+  user:
+    name: loki
+    system: true
+    shell: /bin/false
+    create_home: false
+
+- name: Create Loki data directory
+  file:
+    path: /var/lib/loki
+    state: directory
+    owner: loki
+    group: loki
+    mode: "0755"
+
+- name: Create Loki config directory
+  file:
+    path: /etc/loki
+    state: directory
+    mode: "0755"
+
+- name: Deploy Loki config
+  template:
+    src: loki-config.yaml.j2
+    dest: /etc/loki/config.yaml
+    mode: "0644"
+  notify: restart loki
+
+- name: Deploy Promtail config
+  template:
+    src: promtail-config.yaml.j2
+    dest: /etc/loki/promtail.yaml
+    mode: "0644"
+  notify: restart promtail
+
+- name: Deploy Loki systemd service
+  copy:
+    dest: /etc/systemd/system/loki.service
+    content: |
+      [Unit]
+      Description=Loki log aggregation
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=loki
+      ExecStart=/usr/local/bin/loki -config.file=/etc/loki/config.yaml
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart loki
+
+- name: Deploy Promtail systemd service
+  copy:
+    dest: /etc/systemd/system/promtail.service
+    content: |
+      [Unit]
+      Description=Promtail log shipper
+      After=network.target loki.service
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/promtail -config.file=/etc/loki/promtail.yaml
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart promtail
+
+# ── Grafana ────────────────────────────────────────────────────────────────────
+
+- name: Add Grafana APT key
+  apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+
+- name: Add Grafana APT repository
+  apt_repository:
+    repo: "deb https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+
+- name: Install Grafana
+  apt:
+    name: grafana
+    state: present
+    update_cache: true
+
+- name: Configure Grafana
+  template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: restart grafana
+
+- name: Deploy KosmOS Grafana datasources
+  template:
+    src: grafana-datasources.yaml.j2
+    dest: /etc/grafana/provisioning/datasources/kosmos.yaml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: restart grafana
+
+- name: Deploy KosmOS Grafana dashboard provisioning config
+  copy:
+    dest: /etc/grafana/provisioning/dashboards/kosmos.yaml
+    content: |
+      apiVersion: 1
+      providers:
+        - name: KosmOS
+          type: file
+          options:
+            path: /etc/grafana/dashboards
+    owner: grafana
+    group: grafana
+    mode: "0640"
+
+- name: Create Grafana dashboards directory
+  file:
+    path: /etc/grafana/dashboards
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+
+- name: Deploy KosmOS Grafana dashboard
+  copy:
+    src: kosmos-dashboard.json
+    dest: /etc/grafana/dashboards/kosmos.json
+    owner: grafana
+    group: grafana
+    mode: "0644"
+
+# ── Start all services ─────────────────────────────────────────────────────────
+
+- name: Enable and start observability services
+  systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - prometheus
+    - node_exporter
+    - loki
+    - promtail
+    - grafana-server
