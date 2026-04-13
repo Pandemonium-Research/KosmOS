@@ -13,18 +13,33 @@ A bootable Ubuntu 24.04 server image pre-loaded with LLMs, agent frameworks, and
 - ~50 GB free disk space (models + image)
 - 8 GB RAM minimum for the build VM
 
-Packer and `sshpass` are installed automatically by the Makefile targets if missing.
+Packer is installed automatically by `make build` if missing.
 
 ---
 
 ## Build
 
+### First time (fresh clone)
+
+The build uses SSH key authentication — no passwords. Before the first build, generate the Packer SSH keypair:
+
+```bash
+make keygen
+```
+
+This creates `build/http/packer_key` (the private key, gitignored) and patches `build/http/user-data` to embed the matching public key in the image. You only need to run this once per clone.
+
+> **Team workflow:** One person runs `make keygen` and commits the updated `packer_key.pub` + `user-data`. Everyone else gets the private key out-of-band (e.g. a shared secret store) and drops it at `build/http/packer_key`.
+
+### Building the image
+
 ```bash
 make build
 ```
 
-Installs Packer if needed, then runs `packer build build/kosmos.pkr.hcl`. Output lands in `dist/kosmos.qcow2`.
-Full rebuild from scratch takes ~60–90 minutes (includes pulling ~7 GB of Ollama models).
+Checks for the Packer key, installs Packer if needed, then runs `packer build`. Output lands in `dist/kosmos.qcow2`. Full build takes ~60–90 minutes (includes pulling ~7 GB of Ollama models).
+
+To rebuild from scratch: `make build` always wipes `dist/` first.
 
 ---
 
@@ -39,7 +54,7 @@ All service ports are forwarded 1:1 so you can reach any service directly from t
 Then SSH in:
 
 ```bash
-ssh -p 2222 kosmos@localhost   # password: kosmos
+ssh -p 2222 -i build/http/packer_key kosmos@localhost
 ```
 
 To shut down: `make stop`
@@ -110,7 +125,10 @@ kosmOS/
 │   └── run.sh                 # boots QCOW2 with all 11 ports forwarded
 ├── build/
 │   ├── kosmos.pkr.hcl         # Packer template — single entry point
-│   ├── http/                  # Ubuntu autoinstall cloud-init
+│   ├── http/
+│   │   ├── user-data          # Ubuntu autoinstall cloud-init config
+│   │   ├── packer_key.pub     # Packer SSH public key (committed)
+│   │   └── packer_key         # Packer SSH private key (gitignored — run make keygen)
 │   └── ansible/
 │       ├── site.yml           # master playbook
 │       ├── roles/
