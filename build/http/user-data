@@ -31,6 +31,15 @@ autoinstall:
     # the installer directly, so no manual ~/.ssh setup needed in late-commands.
     authorized-keys:
       - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIONEzIUmy0nbSq6l+0qMFzpKMB2bIylfGyHQr5gdIR1/ packer-build"
+  # Disable geoip mirror selection (requires an extra HTTP call that can fail
+  # inside QEMU NAT). Pin archive.ubuntu.com directly for a stable build.
+  apt:
+    geoip: false
+    preserve_sources_list: false
+    primary:
+      - arches: [amd64]
+        uri: http://archive.ubuntu.com/ubuntu
+
   # No packages installed by the installer — Ansible base role handles all of
   # this. Keeping the installer lean avoids apt-get update failures during the
   # install phase, which are a common source of flaky builds.
