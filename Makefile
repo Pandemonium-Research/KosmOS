@@ -21,7 +21,7 @@ keygen:         ## Generate the Packer SSH keypair (run once after cloning)
 	  exit 0; \
 	fi
 	ssh-keygen -t ed25519 -f $(PACKER_KEY) -N "" -C "packer-build"
-	sed -i "s|echo 'ssh-ed25519 [^']*'|echo '$$(cat $(PACKER_KEY_PUB))'|" build/http/user-data
+	sed -i "s|\"ssh-ed25519 [^\"]*\"|\"$$(cat $(PACKER_KEY_PUB))\"|" build/http/user-data
 	@echo ""
 	@echo "Done. Commit $(PACKER_KEY_PUB) and build/http/user-data if the key changed."
 
