@@ -45,9 +45,6 @@ variable "ssh_password" {
   default = "kosmos"
 }
 
-variable "ssh_private_key_file" {
-  default = "${path.root}/http/packer_key"
-}
 
 # ── Source: QEMU ───────────────────────────────────────────────────────────────
 
@@ -64,7 +61,7 @@ source "qemu" "kosmos" {
   headless         = true
 
   ssh_username         = var.ssh_username
-  ssh_private_key_file = var.ssh_private_key_file
+  ssh_private_key_file = "${path.root}/http/packer_key"
   ssh_timeout          = "60m"
 
   # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP.
