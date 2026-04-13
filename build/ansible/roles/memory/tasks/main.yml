@@ -3,7 +3,10 @@
 
 - name: Install ChromaDB into kosmos venv
   become_user: "{{ kosmos_user }}"
-  command: "uv pip install --python {{ kosmos_venv }}/bin/python chromadb sentence-transformers"
+  # sentence-transformers is intentionally excluded — it pulls torch with the
+  # full CUDA toolkit (~2.5 GB) which exhausts disk space during the build.
+  # ChromaDB's DefaultEmbeddingFunction uses ONNX (not torch), so this is fine.
+  command: "uv pip install --python {{ kosmos_venv }}/bin/python chromadb"
   register: chroma_pip
   changed_when: "'already installed' not in chroma_pip.stdout"
 
