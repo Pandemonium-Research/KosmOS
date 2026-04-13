@@ -45,6 +45,10 @@ variable "ssh_password" {
   default = "kosmos"
 }
 
+variable "ssh_private_key_file" {
+  default = "${path.root}/http/packer_key"
+}
+
 # ── Source: QEMU ───────────────────────────────────────────────────────────────
 
 source "qemu" "kosmos" {
@@ -59,9 +63,9 @@ source "qemu" "kosmos" {
   accelerator      = "kvm"
   headless         = true
 
-  ssh_username     = var.ssh_username
-  ssh_password     = var.ssh_password
-  ssh_timeout      = "150m"  # generous: cloud-init (~20m) + possible resume delays
+  ssh_username         = var.ssh_username
+  ssh_private_key_file = var.ssh_private_key_file
+  ssh_timeout          = "60m"
 
   # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP.
   #
@@ -113,7 +117,7 @@ build {
     use_proxy       = true
     extra_arguments = [
       "--become",
-      "-e", "ansible_become_password=${var.ssh_password}",
+      "-e", "ansible_become_password=${var.ssh_password}",  # sudo password for the kosmos user
       "-e", "@${path.root}/ansible/vars/defaults.yml"
     ]
   }

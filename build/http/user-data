@@ -26,7 +26,7 @@ autoinstall:
     password: "$6$rounds=4096$saltsaltsalt$auhF/gtdoDJ4Unxg24MB7nby3LZxJMrf9WENjHOTiWSB1E5Ye4yk3fjzO0rqGctslG5mNh6EFSndRf4HwtbCE."
   ssh:
     install-server: true
-    allow-pw: true
+    allow-pw: false
   packages:
     - curl
     - wget
@@ -45,3 +45,10 @@ autoinstall:
   late-commands:
     - echo 'kosmos ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/kosmos
     - chmod 440 /target/etc/sudoers.d/kosmos
+    # Inject the Packer build key so SSH key auth works from first boot.
+    # Password auth stays disabled (allow-pw: false) — no race with cloud-init.
+    - mkdir -p /target/home/kosmos/.ssh
+    - echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIONEzIUmy0nbSq6l+0qMFzpKMB2bIylfGyHQr5gdIR1/ packer-build' > /target/home/kosmos/.ssh/authorized_keys
+    - chmod 700 /target/home/kosmos/.ssh
+    - chmod 600 /target/home/kosmos/.ssh/authorized_keys
+    - chown -R 1000:1000 /target/home/kosmos/.ssh

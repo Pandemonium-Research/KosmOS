@@ -6,6 +6,10 @@ config/kosmos.env
 *.env
 .env
 
+# Packer SSH build key — private key is never committed; public key is.
+# Regenerate with: make keygen
+build/http/packer_key
+
 # Packer artifacts
 packer_cache/
 *.lock.hcl
