@@ -61,7 +61,7 @@ source "qemu" "kosmos" {
 
   ssh_username     = var.ssh_username
   ssh_password     = var.ssh_password
-  ssh_timeout      = "90m"   # covers slow model pulls (qwen2.5:7b ~4 GB + llama3.2:3b ~2 GB)
+  ssh_timeout      = "150m"  # generous: cloud-init (~20m) + possible resume delays
 
   # Ubuntu 24.04 live-server autoinstall via cloud-init over Packer HTTP.
   #
