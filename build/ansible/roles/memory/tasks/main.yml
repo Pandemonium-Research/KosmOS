@@ -6,7 +6,8 @@
   # sentence-transformers is intentionally excluded — it pulls torch with the
   # full CUDA toolkit (~2.5 GB) which exhausts disk space during the build.
   # ChromaDB's DefaultEmbeddingFunction uses ONNX (not torch), so this is fine.
-  command: "uv pip install --python {{ kosmos_venv }}/bin/python chromadb"
+  # Pin to <1.0 to avoid breaking CLI/API changes introduced in 1.0.
+  command: "uv pip install --python {{ kosmos_venv }}/bin/python 'chromadb>=0.5,<1.0'"
   register: chroma_pip
   changed_when: "'already installed' not in chroma_pip.stdout"
 
@@ -35,13 +36,25 @@
     daemon_reload: true
 
 - name: Wait for ChromaDB to be ready
-  uri:
-    url: "http://127.0.0.1:{{ chromadb_port }}/api/v1/heartbeat"
-    status_code: 200
-  register: chroma_ready
-  retries: 15
-  delay: 3
-  until: chroma_ready.status == 200
+  block:
+    - name: Poll ChromaDB heartbeat
+      uri:
+        url: "http://127.0.0.1:{{ chromadb_port }}/api/v1/heartbeat"
+        status_code: 200
+      register: chroma_ready
+      retries: 30
+      delay: 5
+      until: chroma_ready.status == 200
+  rescue:
+    - name: Dump ChromaDB service status for diagnosis
+      command: systemctl status chromadb --no-pager -l
+      failed_when: false
+    - name: Dump ChromaDB journal for diagnosis
+      command: journalctl -u chromadb --no-pager -n 50
+      failed_when: false
+    - name: Fail with helpful message
+      fail:
+        msg: "ChromaDB did not become ready within 150s. See service status and journal output above."
 
 - name: Create default KosmOS collection
   uri:

@@ -23,7 +23,7 @@ kosmos_python_packages:
   - litellm
   - openai
   - anthropic
-  - chromadb
+  - "chromadb>=0.5,<1.0"
   - fastmcp
   - playwright
   - httpx
