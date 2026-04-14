@@ -55,6 +55,13 @@
       delay: 5
       until: chroma_ready.status == 200
   rescue:
+    - name: Read ChromaDB process log (actual crash output)
+      command: "cat {{ kosmos_log_dir }}/chromadb.log"
+      register: chroma_log
+      failed_when: false
+    - name: Print ChromaDB process log
+      debug:
+        msg: "{{ chroma_log.stdout }}"
     - name: Dump ChromaDB service status for diagnosis
       command: systemctl status chromadb --no-pager -l
       register: chroma_status
@@ -62,16 +69,9 @@
     - name: Print ChromaDB service status
       debug:
         msg: "{{ chroma_status.stdout }}"
-    - name: Dump ChromaDB journal for diagnosis
-      command: journalctl -u chromadb --no-pager -n 50
-      register: chroma_journal
-      failed_when: false
-    - name: Print ChromaDB journal
-      debug:
-        msg: "{{ chroma_journal.stdout }}"
     - name: Fail with helpful message
       fail:
-        msg: "ChromaDB did not become ready within 150s. See service status and journal output above."
+        msg: "ChromaDB did not become ready within 150s. See chromadb.log output above."
 
 - name: Create default KosmOS collection
   uri:
