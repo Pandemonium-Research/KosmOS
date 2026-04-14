@@ -35,6 +35,15 @@
     state: started
     daemon_reload: true
 
+- name: Check ChromaDB service state immediately after start
+  command: systemctl is-active chromadb
+  register: chroma_active
+  failed_when: false
+
+- name: Show ChromaDB initial state
+  debug:
+    msg: "ChromaDB systemd state: {{ chroma_active.stdout }}"
+
 - name: Wait for ChromaDB to be ready
   block:
     - name: Poll ChromaDB heartbeat
@@ -48,10 +57,18 @@
   rescue:
     - name: Dump ChromaDB service status for diagnosis
       command: systemctl status chromadb --no-pager -l
+      register: chroma_status
       failed_when: false
+    - name: Print ChromaDB service status
+      debug:
+        msg: "{{ chroma_status.stdout }}"
     - name: Dump ChromaDB journal for diagnosis
       command: journalctl -u chromadb --no-pager -n 50
+      register: chroma_journal
       failed_when: false
+    - name: Print ChromaDB journal
+      debug:
+        msg: "{{ chroma_journal.stdout }}"
     - name: Fail with helpful message
       fail:
         msg: "ChromaDB did not become ready within 150s. See service status and journal output above."
