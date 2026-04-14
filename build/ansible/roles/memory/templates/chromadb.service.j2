@@ -16,6 +16,7 @@ ExecStart={{ kosmos_venv }}/bin/chroma run \
     --path {{ kosmos_data_dir }}/chroma
 Restart=always
 RestartSec=5
+TimeoutStartSec=120
 StandardOutput=append:{{ kosmos_log_dir }}/chromadb.log
 StandardError=append:{{ kosmos_log_dir }}/chromadb.log
 
