@@ -43,6 +43,10 @@ prometheus_port: 9090
 loki_port: 3100
 
 # ── Observability ──────────────────────────────────────────────────────────────
+# Loki 2.9.x is the last release series that ships Promtail.
+# Promtail was removed in Loki 3.0 (replaced by Grafana Alloy).
+loki_version: "2.9.9"
+
 prometheus_scrape_interval: 15s
 grafana_admin_password: kosmos   # change post-boot for production use
 

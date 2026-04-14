@@ -140,15 +140,8 @@
 
 # ── Loki + Promtail ────────────────────────────────────────────────────────────
 
-- name: Get latest Loki version
-  uri:
-    url: https://api.github.com/repos/grafana/loki/releases/latest
-    return_content: true
-  register: loki_release
-
-- name: Set Loki version fact
-  set_fact:
-    loki_version: "{{ loki_release.json.tag_name | regex_replace('^v', '') }}"
+# loki_version is pinned in vars/defaults.yml to the last 2.x release
+# that ships Promtail. Do not auto-upgrade to 3.x — Promtail was removed.
 
 - name: Download Loki
   get_url:
