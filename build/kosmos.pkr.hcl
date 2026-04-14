@@ -58,6 +58,7 @@ source "qemu" "kosmos" {
   cpus             = var.cpus
   format           = "qcow2"
   accelerator      = "kvm"
+  cpu_model        = "host"   # expose host CPU features (x86-64-v2+) so NumPy 2.x runs
   headless         = true
 
   ssh_username         = var.ssh_username
