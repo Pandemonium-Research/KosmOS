@@ -20,6 +20,14 @@
   delay: 15
   until: ollama_install is succeeded
 
+- name: Ensure /var/lib/ollama exists with correct ownership
+  file:
+    path: /var/lib/ollama
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: "0755"
+
 - name: Create ollama systemd override directory
   file:
     path: /etc/systemd/system/ollama.service.d

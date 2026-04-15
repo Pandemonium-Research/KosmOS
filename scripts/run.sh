@@ -27,6 +27,7 @@ fi
 
 exec qemu-system-x86_64 \
   -enable-kvm \
+  -cpu host \
   -m 8192 \
   -smp 4 \
   -drive file="$DISK",format=qcow2 \
