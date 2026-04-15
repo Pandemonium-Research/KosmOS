@@ -5,10 +5,10 @@ PACKER_KEY     := build/http/packer_key
 PACKER_KEY_PUB := build/http/packer_key.pub
 
 # SSH helpers — key auth, no host-key checking (dev VM only)
-SSH_OPTS := -p 2222 -i $(PACKER_KEY) \
-            -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-SSH  := ssh  $(SSH_OPTS) kosmos@127.0.0.1
-SCP  := scp  $(SSH_OPTS)
+# Note: ssh uses -p (lowercase) for port; scp uses -P (uppercase)
+SSH_OPTS := -i $(PACKER_KEY) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+SSH  := ssh  -p 2222 $(SSH_OPTS) kosmos@127.0.0.1
+SCP  := scp  -P 2222 $(SSH_OPTS)
 
 help:           ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
