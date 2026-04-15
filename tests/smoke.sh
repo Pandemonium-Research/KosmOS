@@ -73,7 +73,7 @@ echo ""
 
 echo "[ HTTP endpoints ]"
 check_http "Ollama" "http://127.0.0.1:11434/api/tags"
-check_http "LiteLLM" "http://127.0.0.1:4000/health"
+check_http "LiteLLM" "http://127.0.0.1:4000/health/liveliness"
 check_http "ChromaDB" "http://127.0.0.1:8000/api/v1/heartbeat"
 check_http "SearXNG" "http://127.0.0.1:8888" "200"
 check_http "Temporal UI" "http://127.0.0.1:8233" "200"
